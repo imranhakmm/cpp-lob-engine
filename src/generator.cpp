@@ -37,7 +37,8 @@ Message SyntheticGenerator::next() {
     OrderId target = live_[idx];
     Side side = rand_unit() < 0.5 ? Side::Buy : Side::Sell;
     Price offset = static_cast<Price>(rand_int(0, cfg_.half_window));
-    Price new_px = clamp_price(side == Side::Buy ? mid_ - offset : mid_ + offset);
+    Price new_px =
+        clamp_price(side == Side::Buy ? mid_ - offset : mid_ + offset);
     Quantity new_qty = rand_int(1, cfg_.max_size);
     return Message{MsgType::Modify, target, side, 0, 0, ts_, new_px, new_qty};
   }
@@ -59,4 +60,4 @@ Message SyntheticGenerator::next() {
   return Message{MsgType::Limit, id, side, px, qty, ts_, 0, 0};
 }
 
-}  // namespace lob
+} // namespace lob

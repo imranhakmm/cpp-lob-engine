@@ -2,28 +2,27 @@
 // the trade tape, per-message top-of-book and final snapshot back as numpy
 // arrays for the analytics layer.
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
-#include <cstdint>
-#include <cstring>
-#include <vector>
-
 #include "lob/event_sink.hpp"
 #include "lob/generator.hpp"
 #include "lob/order_book_fast.hpp"
 #include "lob/replay.hpp"
+
+#include <cstdint>
+#include <cstring>
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <vector>
 
 namespace py = pybind11;
 using namespace lob;
 
 namespace {
 
-template <class T>
-py::array_t<T> to_np(const std::vector<T>& v) {
+template <class T> py::array_t<T> to_np(const std::vector<T>& v) {
   py::array_t<T> a(static_cast<py::ssize_t>(v.size()));
-  if (!v.empty()) std::memcpy(a.mutable_data(), v.data(), v.size() * sizeof(T));
+  if (!v.empty())
+    std::memcpy(a.mutable_data(), v.data(), v.size() * sizeof(T));
   return a;
 }
 
@@ -39,11 +38,12 @@ struct SimColumns {
   std::vector<std::int64_t> tr_ts;
   std::vector<std::int32_t> tr_price;
   std::vector<std::int64_t> tr_qty;
-  std::vector<std::int8_t> tr_taker_side;  // 0=Buy,1=Sell
+  std::vector<std::int8_t> tr_taker_side; // 0=Buy,1=Sell
   std::vector<std::uint64_t> tr_taker_id, tr_maker_id;
 };
 
-void record_l1(SimColumns& c, OrderBookFast<EventCollector>& book, Timestamp ts) {
+void record_l1(SimColumns& c, OrderBookFast<EventCollector>& book,
+               Timestamp ts) {
   c.ts.push_back(static_cast<std::int64_t>(ts));
   auto bb = book.best_bid();
   auto ba = book.best_ask();
@@ -112,11 +112,11 @@ py::dict replay_csv(const std::string& path, Price num_ticks) {
   return columns_to_dict(run(load_csv(path), num_ticks));
 }
 
-}  // namespace
+} // namespace
 
 // Thin interactive wrapper around the optimised engine.
 class Book {
- public:
+public:
   explicit Book(Price num_ticks = 200000, std::size_t pool = 1 << 16)
       : book_(ev_, num_ticks, pool) {}
 
@@ -157,7 +157,7 @@ class Book {
   std::size_t num_trades() const { return ev_.trades.size(); }
   void clear_events() { ev_.clear(); }
 
- private:
+private:
   EventCollector ev_;
   OrderBookFast<EventCollector> book_;
 };
@@ -190,6 +190,7 @@ PYBIND11_MODULE(lobpy, m) {
         "Generate synthetic flow, replay through the optimised engine and "
         "return {'l1': {...}, 'trades': {...}} as numpy column arrays.");
 
-  m.def("replay_csv", &replay_csv, py::arg("path"), py::arg("num_ticks") = 200000,
-        "Replay a normalized CSV message file; same return shape as simulate().");
+  m.def(
+      "replay_csv", &replay_csv, py::arg("path"), py::arg("num_ticks") = 200000,
+      "Replay a normalized CSV message file; same return shape as simulate().");
 }

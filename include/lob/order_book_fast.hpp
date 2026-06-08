@@ -13,9 +13,11 @@
 //   * Best bid / best ask are cached and only re-scanned when the top level is
 //     consumed.
 //
-// The matching loop mirrors OrderBookRef::match_against line-for-line so the two
-// engines emit trades and book updates in exactly the same order. See
+// The matching loop mirrors OrderBookRef::match_against line-for-line so the
+// two engines emit trades and book updates in exactly the same order. See
 // docs/DESIGN.md for the correctness argument.
+
+#include "lob/types.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -23,13 +25,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "lob/types.hpp"
-
 namespace lob {
 
-template <class Sink>
-class OrderBookFast {
- public:
+template <class Sink> class OrderBookFast {
+public:
   struct LevelView {
     Price price;
     Quantity quantity;
@@ -37,45 +36,46 @@ class OrderBookFast {
 
   // Levels span ticks [0, num_ticks). All message prices must fall in range.
   // pool_capacity pre-reserves order nodes so the steady state never allocates.
-  OrderBookFast(Sink& sink, Price num_ticks, std::size_t pool_capacity = 1 << 16)
-      : sink_(sink),
-        num_ticks_(num_ticks),
-        levels_(static_cast<std::size_t>(num_ticks)),
-        best_bid_(kNoBid),
-        best_ask_(num_ticks),
-        bid_lo_(num_ticks),
-        ask_hi_(kNoBid) {
+  OrderBookFast(Sink& sink, Price num_ticks,
+                std::size_t pool_capacity = 1 << 16)
+      : sink_(sink), num_ticks_(num_ticks),
+        levels_(static_cast<std::size_t>(num_ticks)), best_bid_(kNoBid),
+        best_ask_(num_ticks), bid_lo_(num_ticks), ask_hi_(kNoBid) {
     pool_.reserve(pool_capacity);
     index_.reserve(pool_capacity);
   }
 
   void submit(const Message& m) {
     switch (m.type) {
-      case MsgType::Limit:
-        add_limit(m.id, m.side, m.price, m.quantity, m.ts);
-        break;
-      case MsgType::Market:
-        add_market(m.id, m.side, m.quantity, m.ts);
-        break;
-      case MsgType::Cancel:
-        cancel(m.id, m.ts);
-        break;
-      case MsgType::Modify:
-        modify(m.id, m.new_price, m.new_quantity, m.ts);
-        break;
+    case MsgType::Limit:
+      add_limit(m.id, m.side, m.price, m.quantity, m.ts);
+      break;
+    case MsgType::Market:
+      add_market(m.id, m.side, m.quantity, m.ts);
+      break;
+    case MsgType::Cancel:
+      cancel(m.id, m.ts);
+      break;
+    case MsgType::Modify:
+      modify(m.id, m.new_price, m.new_quantity, m.ts);
+      break;
     }
   }
 
-  void add_limit(OrderId id, Side side, Price price, Quantity qty, Timestamp ts) {
-    if (qty <= 0) return;
+  void add_limit(OrderId id, Side side, Price price, Quantity qty,
+                 Timestamp ts) {
+    if (qty <= 0)
+      return;
     Quantity remaining = side == Side::Buy
                              ? match_buy(id, price, qty, ts, false)
                              : match_sell(id, price, qty, ts, false);
-    if (remaining > 0) rest(id, side, price, remaining, ts);
+    if (remaining > 0)
+      rest(id, side, price, remaining, ts);
   }
 
   void add_market(OrderId id, Side side, Quantity qty, Timestamp ts) {
-    if (qty <= 0) return;
+    if (qty <= 0)
+      return;
     if (side == Side::Buy) {
       match_buy(id, 0, qty, ts, true);
     } else {
@@ -85,7 +85,8 @@ class OrderBookFast {
 
   void cancel(OrderId id, Timestamp ts) {
     auto it = index_.find(id);
-    if (it == index_.end()) return;
+    if (it == index_.end())
+      return;
     std::int32_t slot = it->second;
     Node& n = pool_[static_cast<std::size_t>(slot)];
     Side side = n.side;
@@ -97,30 +98,37 @@ class OrderBookFast {
     index_.erase(it);
     sink_.on_book_update(BookUpdate{side, price, lvl.total, ts});
     if (lvl.total == 0) {
-      if (side == Side::Buy && price == best_bid_) retreat_best_bid(price - 1);
-      if (side == Side::Sell && price == best_ask_) advance_best_ask(price + 1);
+      if (side == Side::Buy && price == best_bid_)
+        retreat_best_bid(price - 1);
+      if (side == Side::Sell && price == best_ask_)
+        advance_best_ask(price + 1);
     }
   }
 
   void modify(OrderId id, Price new_price, Quantity new_qty, Timestamp ts) {
     auto it = index_.find(id);
-    if (it == index_.end()) return;
+    if (it == index_.end())
+      return;
     Side side = pool_[static_cast<std::size_t>(it->second)].side;
     cancel(id, ts);
-    if (new_qty > 0) add_limit(id, side, new_price, new_qty, ts);
+    if (new_qty > 0)
+      add_limit(id, side, new_price, new_qty, ts);
   }
 
   std::optional<Price> best_bid() const {
-    if (best_bid_ == kNoBid) return std::nullopt;
+    if (best_bid_ == kNoBid)
+      return std::nullopt;
     return best_bid_;
   }
   std::optional<Price> best_ask() const {
-    if (best_ask_ == num_ticks_) return std::nullopt;
+    if (best_ask_ == num_ticks_)
+      return std::nullopt;
     return best_ask_;
   }
 
   Quantity qty_at(Side, Price price) const {
-    if (price < 0 || price >= num_ticks_) return 0;
+    if (price < 0 || price >= num_ticks_)
+      return 0;
     return levels_[static_cast<std::size_t>(price)].total;
   }
 
@@ -128,15 +136,19 @@ class OrderBookFast {
     std::vector<LevelView> out;
     if (side == Side::Buy) {
       for (Price p = best_bid_; p >= bid_lo_; --p) {
-        if (depth >= 0 && static_cast<int>(out.size()) >= depth) break;
+        if (depth >= 0 && static_cast<int>(out.size()) >= depth)
+          break;
         const Level& lvl = levels_[static_cast<std::size_t>(p)];
-        if (lvl.total > 0) out.push_back({p, lvl.total});
+        if (lvl.total > 0)
+          out.push_back({p, lvl.total});
       }
     } else {
       for (Price p = best_ask_; p <= ask_hi_; ++p) {
-        if (depth >= 0 && static_cast<int>(out.size()) >= depth) break;
+        if (depth >= 0 && static_cast<int>(out.size()) >= depth)
+          break;
         const Level& lvl = levels_[static_cast<std::size_t>(p)];
-        if (lvl.total > 0) out.push_back({p, lvl.total});
+        if (lvl.total > 0)
+          out.push_back({p, lvl.total});
       }
     }
     return out;
@@ -144,7 +156,7 @@ class OrderBookFast {
 
   std::size_t order_count() const { return index_.size(); }
 
- private:
+private:
   static constexpr Price kNoBid = -1;
   static constexpr std::int32_t kNil = -1;
 
@@ -159,8 +171,8 @@ class OrderBookFast {
 
   struct Level {
     Quantity total{0};
-    std::int32_t head{kNil};  // oldest / highest priority
-    std::int32_t tail{kNil};  // newest
+    std::int32_t head{kNil}; // oldest / highest priority
+    std::int32_t tail{kNil}; // newest
   };
 
   std::int32_t alloc_node(const Node& n) {
@@ -194,12 +206,14 @@ class OrderBookFast {
                      bool is_market) {
     while (qty > 0 && best_ask_ < num_ticks_) {
       Price level_px = best_ask_;
-      if (!is_market && level_px > limit) break;
+      if (!is_market && level_px > limit)
+        break;
       Level& lvl = levels_[static_cast<std::size_t>(level_px)];
       while (qty > 0 && lvl.head != kNil) {
         Node& maker = pool_[static_cast<std::size_t>(lvl.head)];
         Quantity exec = qty < maker.quantity ? qty : maker.quantity;
-        sink_.on_trade(Trade{taker_id, maker.id, Side::Buy, level_px, exec, ts});
+        sink_.on_trade(
+            Trade{taker_id, maker.id, Side::Buy, level_px, exec, ts});
         qty -= exec;
         maker.quantity -= exec;
         lvl.total -= exec;
@@ -216,7 +230,8 @@ class OrderBookFast {
         }
       }
       sink_.on_book_update(BookUpdate{Side::Sell, level_px, lvl.total, ts});
-      if (lvl.total == 0) advance_best_ask(level_px + 1);
+      if (lvl.total == 0)
+        advance_best_ask(level_px + 1);
     }
     return qty;
   }
@@ -225,12 +240,14 @@ class OrderBookFast {
                       bool is_market) {
     while (qty > 0 && best_bid_ >= 0) {
       Price level_px = best_bid_;
-      if (!is_market && level_px < limit) break;
+      if (!is_market && level_px < limit)
+        break;
       Level& lvl = levels_[static_cast<std::size_t>(level_px)];
       while (qty > 0 && lvl.head != kNil) {
         Node& maker = pool_[static_cast<std::size_t>(lvl.head)];
         Quantity exec = qty < maker.quantity ? qty : maker.quantity;
-        sink_.on_trade(Trade{taker_id, maker.id, Side::Sell, level_px, exec, ts});
+        sink_.on_trade(
+            Trade{taker_id, maker.id, Side::Sell, level_px, exec, ts});
         qty -= exec;
         maker.quantity -= exec;
         lvl.total -= exec;
@@ -247,7 +264,8 @@ class OrderBookFast {
         }
       }
       sink_.on_book_update(BookUpdate{Side::Buy, level_px, lvl.total, ts});
-      if (lvl.total == 0) retreat_best_bid(level_px - 1);
+      if (lvl.total == 0)
+        retreat_best_bid(level_px - 1);
     }
     return qty;
   }
@@ -264,11 +282,15 @@ class OrderBookFast {
     lvl.total += qty;
     index_[id] = slot;
     if (side == Side::Buy) {
-      if (price > best_bid_) best_bid_ = price;
-      if (price < bid_lo_) bid_lo_ = price;
+      if (price > best_bid_)
+        best_bid_ = price;
+      if (price < bid_lo_)
+        bid_lo_ = price;
     } else {
-      if (price < best_ask_) best_ask_ = price;
-      if (price > ask_hi_) ask_hi_ = price;
+      if (price < best_ask_)
+        best_ask_ = price;
+      if (price > ask_hi_)
+        ask_hi_ = price;
     }
     sink_.on_book_update(BookUpdate{side, price, lvl.total, ts});
   }
@@ -278,10 +300,11 @@ class OrderBookFast {
   // O(1) instead of O(tick_domain). ask_hi_ is reset when the side empties.
   void advance_best_ask(Price from) {
     Price p = from;
-    while (p <= ask_hi_ && levels_[static_cast<std::size_t>(p)].total == 0) ++p;
+    while (p <= ask_hi_ && levels_[static_cast<std::size_t>(p)].total == 0)
+      ++p;
     if (p > ask_hi_) {
-      best_ask_ = num_ticks_;  // no asks remain
-      ask_hi_ = kNoBid;        // reset span so re-population stays tight
+      best_ask_ = num_ticks_; // no asks remain
+      ask_hi_ = kNoBid;       // reset span so re-population stays tight
     } else {
       best_ask_ = p;
     }
@@ -289,10 +312,11 @@ class OrderBookFast {
 
   void retreat_best_bid(Price from) {
     Price p = from;
-    while (p >= bid_lo_ && levels_[static_cast<std::size_t>(p)].total == 0) --p;
+    while (p >= bid_lo_ && levels_[static_cast<std::size_t>(p)].total == 0)
+      --p;
     if (p < bid_lo_) {
       best_bid_ = kNoBid;   // no bids remain
-      bid_lo_ = num_ticks_;  // reset span
+      bid_lo_ = num_ticks_; // reset span
     } else {
       best_bid_ = p;
     }
@@ -306,8 +330,8 @@ class OrderBookFast {
   std::unordered_map<OrderId, std::int32_t> index_;
   Price best_bid_;
   Price best_ask_;
-  Price bid_lo_;  // lowest occupied bid tick (== num_ticks_ when no bids)
-  Price ask_hi_;  // highest occupied ask tick (== kNoBid when no asks)
+  Price bid_lo_; // lowest occupied bid tick (== num_ticks_ when no bids)
+  Price ask_hi_; // highest occupied ask tick (== kNoBid when no asks)
 };
 
-}  // namespace lob
+} // namespace lob

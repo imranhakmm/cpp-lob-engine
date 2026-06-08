@@ -1,11 +1,8 @@
 // Golden cross-validation: the optimised engine must be observationally
-// identical to the reference engine. We replay the same streams through both and
-// assert the full trade tape, the full book-update stream, and the final book
-// snapshot all match exactly. This is the project's central correctness story.
-
-#include <gtest/gtest.h>
-
-#include <vector>
+// identical to the reference engine. We replay the same streams through both
+// and assert the full trade tape, the full book-update stream, and the final
+// book snapshot all match exactly. This is the project's central correctness
+// story.
 
 #include "lob/event_sink.hpp"
 #include "lob/generator.hpp"
@@ -13,12 +10,16 @@
 #include "lob/order_book_ref.hpp"
 #include "lob/replay.hpp"
 
+#include <gtest/gtest.h>
+#include <vector>
+
 using namespace lob;
 
 namespace {
 
-void assert_snapshots_equal(const std::vector<OrderBookRef<EventCollector>::LevelView>& a,
-                            const std::vector<OrderBookFast<EventCollector>::LevelView>& b) {
+void assert_snapshots_equal(
+    const std::vector<OrderBookRef<EventCollector>::LevelView>& a,
+    const std::vector<OrderBookFast<EventCollector>::LevelView>& b) {
   ASSERT_EQ(a.size(), b.size());
   for (std::size_t i = 0; i < a.size(); ++i) {
     EXPECT_EQ(a[i].price, b[i].price) << "level " << i;
@@ -43,14 +44,16 @@ void cross_validate(const std::vector<Message>& stream, Price num_ticks) {
   ASSERT_EQ(ref_ev.updates.size(), fast_ev.updates.size()) << "update count";
   EXPECT_EQ(ref_ev.updates, fast_ev.updates) << "book-update stream mismatch";
 
-  assert_snapshots_equal(ref.snapshot(Side::Buy, -1), fast.snapshot(Side::Buy, -1));
-  assert_snapshots_equal(ref.snapshot(Side::Sell, -1), fast.snapshot(Side::Sell, -1));
+  assert_snapshots_equal(ref.snapshot(Side::Buy, -1),
+                         fast.snapshot(Side::Buy, -1));
+  assert_snapshots_equal(ref.snapshot(Side::Sell, -1),
+                         fast.snapshot(Side::Sell, -1));
 
   EXPECT_EQ(ref.best_bid(), fast.best_bid());
   EXPECT_EQ(ref.best_ask(), fast.best_ask());
 }
 
-}  // namespace
+} // namespace
 
 TEST(Golden, SyntheticDefaultSeed) {
   GenConfig cfg;
@@ -73,7 +76,7 @@ TEST(Golden, AggressiveMarketHeavyFlow) {
   cfg.seed = 555;
   cfg.p_market = 0.25;
   cfg.p_aggressive = 0.45;
-  cfg.half_window = 16;  // thin book -> lots of level depletion / best-px moves
+  cfg.half_window = 16; // thin book -> lots of level depletion / best-px moves
   SyntheticGenerator g(cfg);
   cross_validate(g.generate(120000), cfg.num_ticks);
 }

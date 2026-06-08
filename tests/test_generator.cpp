@@ -1,11 +1,11 @@
 // Generator tests: deterministic reproducibility and basic stream sanity.
 
-#include <gtest/gtest.h>
-
 #include "lob/event_sink.hpp"
 #include "lob/generator.hpp"
 #include "lob/order_book_ref.hpp"
 #include "lob/replay.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace lob;
 
@@ -58,12 +58,13 @@ TEST(Generator, PricesInRangeAndStreamReplays) {
       EXPECT_LT(m.price, cfg.num_ticks);
     }
   }
-  // Replaying through the reference engine must not crash or violate invariants.
+  // Replaying through the reference engine must not crash or violate
+  // invariants.
   EventCollector ev;
   OrderBookRef<EventCollector> book(ev);
   replay(book, stream);
   if (book.best_bid() && book.best_ask()) {
     EXPECT_LT(*book.best_bid(), *book.best_ask());
   }
-  EXPECT_GT(ev.trades.size(), 0u);  // aggressive flow should produce trades
+  EXPECT_GT(ev.trades.size(), 0u); // aggressive flow should produce trades
 }

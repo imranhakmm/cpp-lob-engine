@@ -1,18 +1,16 @@
 // CSV format tests: round-trip fidelity and replay equivalence.
 
-#include <gtest/gtest.h>
-
-#include <unistd.h>
-
-#include <atomic>
-#include <cstdio>
-#include <filesystem>
-#include <string>
-
 #include "lob/event_sink.hpp"
 #include "lob/generator.hpp"
 #include "lob/order_book_ref.hpp"
 #include "lob/replay.hpp"
+
+#include <atomic>
+#include <cstdio>
+#include <filesystem>
+#include <gtest/gtest.h>
+#include <string>
+#include <unistd.h>
 
 using namespace lob;
 
@@ -32,7 +30,7 @@ std::string temp_csv_path() {
               std::to_string(::getpid()) + ".csv";
   return (dir / name).string();
 }
-}  // namespace
+} // namespace
 
 TEST(Csv, LineRoundTrip) {
   Message m{MsgType::Modify, 42, Side::Sell, 0, 0, 99, 12345, 7};

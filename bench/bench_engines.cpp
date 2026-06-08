@@ -6,14 +6,13 @@
 //   * an aggressive order sweeping a level
 // for both the reference and optimised engines.
 
-#include <benchmark/benchmark.h>
-
-#include <vector>
-
 #include "lob/event_sink.hpp"
 #include "lob/generator.hpp"
 #include "lob/order_book_fast.hpp"
 #include "lob/order_book_ref.hpp"
+
+#include <benchmark/benchmark.h>
+#include <vector>
 
 using namespace lob;
 
@@ -28,14 +27,15 @@ std::vector<Message> make_stream(std::size_t n, std::uint64_t seed = 2024) {
 
 const Price kTicks = GenConfig{}.num_ticks;
 
-}  // namespace
+} // namespace
 
 static void BM_Replay_Ref(benchmark::State& state) {
   auto stream = make_stream(static_cast<std::size_t>(state.range(0)));
   for (auto _ : state) {
     CountingSink sink;
     OrderBookRef<CountingSink> book(sink);
-    for (const auto& m : stream) book.submit(m);
+    for (const auto& m : stream)
+      book.submit(m);
     benchmark::DoNotOptimize(sink.trade_count);
   }
   state.SetItemsProcessed(state.iterations() * state.range(0));
@@ -47,7 +47,8 @@ static void BM_Replay_Fast(benchmark::State& state) {
   for (auto _ : state) {
     CountingSink sink;
     OrderBookFast<CountingSink> book(sink, kTicks, 1 << 20);
-    for (const auto& m : stream) book.submit(m);
+    for (const auto& m : stream)
+      book.submit(m);
     benchmark::DoNotOptimize(sink.trade_count);
   }
   state.SetItemsProcessed(state.iterations() * state.range(0));

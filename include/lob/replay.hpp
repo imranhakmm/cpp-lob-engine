@@ -12,26 +12,27 @@
 // LOBSTER message files, see data/README.md) into this schema and replay it
 // through either engine.
 
+#include "lob/types.hpp"
+
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "lob/types.hpp"
 
 namespace lob {
 
 // Feed a message stream into any engine exposing submit(const Message&).
 template <class Engine>
 void replay(Engine& engine, const std::vector<Message>& messages) {
-  for (const Message& m : messages) engine.submit(m);
+  for (const Message& m : messages)
+    engine.submit(m);
 }
 
 // --- CSV serialization (implemented in src/replay.cpp) ---------------------
 
 std::string to_csv_line(const Message& m);
-Message parse_csv_line(const std::string& line);  // throws std::runtime_error
+Message parse_csv_line(const std::string& line); // throws std::runtime_error
 
 void write_csv(const std::string& path, const std::vector<Message>& messages);
-std::vector<Message> load_csv(const std::string& path);  // skips header
+std::vector<Message> load_csv(const std::string& path); // skips header
 
-}  // namespace lob
+} // namespace lob

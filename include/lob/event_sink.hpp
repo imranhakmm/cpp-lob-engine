@@ -9,9 +9,9 @@
 //     void on_trade(const Trade&);
 //     void on_book_update(const BookUpdate&);
 
-#include <vector>
-
 #include "lob/types.hpp"
+
+#include <vector>
 
 namespace lob {
 
@@ -55,4 +55,4 @@ struct CountingSink {
   void on_book_update(const BookUpdate&) noexcept { ++update_count; }
 };
 
-}  // namespace lob
+} // namespace lob

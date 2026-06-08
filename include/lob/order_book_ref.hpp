@@ -11,6 +11,8 @@
 // emitted* are documented inline and replicated verbatim by OrderBookFast. That
 // shared contract is what makes the golden Ref==Fast test meaningful.
 
+#include "lob/types.hpp"
+
 #include <cstddef>
 #include <list>
 #include <map>
@@ -18,13 +20,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "lob/types.hpp"
-
 namespace lob {
 
-template <class Sink>
-class OrderBookRef {
- public:
+template <class Sink> class OrderBookRef {
+public:
   struct LevelView {
     Price price;
     Quantity quantity;
@@ -34,36 +33,41 @@ class OrderBookRef {
 
   void submit(const Message& m) {
     switch (m.type) {
-      case MsgType::Limit:
-        add_limit(m.id, m.side, m.price, m.quantity, m.ts);
-        break;
-      case MsgType::Market:
-        add_market(m.id, m.side, m.quantity, m.ts);
-        break;
-      case MsgType::Cancel:
-        cancel(m.id, m.ts);
-        break;
-      case MsgType::Modify:
-        modify(m.id, m.new_price, m.new_quantity, m.ts);
-        break;
+    case MsgType::Limit:
+      add_limit(m.id, m.side, m.price, m.quantity, m.ts);
+      break;
+    case MsgType::Market:
+      add_market(m.id, m.side, m.quantity, m.ts);
+      break;
+    case MsgType::Cancel:
+      cancel(m.id, m.ts);
+      break;
+    case MsgType::Modify:
+      modify(m.id, m.new_price, m.new_quantity, m.ts);
+      break;
     }
   }
 
-  void add_limit(OrderId id, Side side, Price price, Quantity qty, Timestamp ts) {
-    if (qty <= 0) return;
+  void add_limit(OrderId id, Side side, Price price, Quantity qty,
+                 Timestamp ts) {
+    if (qty <= 0)
+      return;
     Quantity remaining = match(id, side, price, qty, ts, /*is_market=*/false);
-    if (remaining > 0) rest(id, side, price, remaining, ts);
+    if (remaining > 0)
+      rest(id, side, price, remaining, ts);
   }
 
   void add_market(OrderId id, Side side, Quantity qty, Timestamp ts) {
-    if (qty <= 0) return;
+    if (qty <= 0)
+      return;
     // Sweep at any price; residual is cancelled (IOC), never rested.
     match(id, side, /*price=*/0, qty, ts, /*is_market=*/true);
   }
 
   void cancel(OrderId id, Timestamp ts) {
     auto it = index_.find(id);
-    if (it == index_.end()) return;
+    if (it == index_.end())
+      return;
     remove_locator(it->second, ts);
     index_.erase(it);
   }
@@ -72,20 +76,24 @@ class OrderBookRef {
     // Cancel-replace: the order loses time priority and the replacement is run
     // through matching like a fresh limit (it may now cross).
     auto it = index_.find(id);
-    if (it == index_.end()) return;
+    if (it == index_.end())
+      return;
     Side side = it->second.side;
     remove_locator(it->second, ts);
     index_.erase(it);
-    if (new_qty > 0) add_limit(id, side, new_price, new_qty, ts);
+    if (new_qty > 0)
+      add_limit(id, side, new_price, new_qty, ts);
   }
 
   std::optional<Price> best_bid() const {
-    if (bids_.empty()) return std::nullopt;
-    return bids_.begin()->first;  // greatest price (descending map)
+    if (bids_.empty())
+      return std::nullopt;
+    return bids_.begin()->first; // greatest price (descending map)
   }
   std::optional<Price> best_ask() const {
-    if (asks_.empty()) return std::nullopt;
-    return asks_.begin()->first;  // least price (ascending map)
+    if (asks_.empty())
+      return std::nullopt;
+    return asks_.begin()->first; // least price (ascending map)
   }
 
   Quantity qty_at(Side side, Price price) const {
@@ -102,12 +110,14 @@ class OrderBookRef {
     std::vector<LevelView> out;
     if (side == Side::Buy) {
       for (const auto& [px, lvl] : bids_) {
-        if (depth >= 0 && static_cast<int>(out.size()) >= depth) break;
+        if (depth >= 0 && static_cast<int>(out.size()) >= depth)
+          break;
         out.push_back({px, lvl.total});
       }
     } else {
       for (const auto& [px, lvl] : asks_) {
-        if (depth >= 0 && static_cast<int>(out.size()) >= depth) break;
+        if (depth >= 0 && static_cast<int>(out.size()) >= depth)
+          break;
         out.push_back({px, lvl.total});
       }
     }
@@ -116,10 +126,10 @@ class OrderBookRef {
 
   std::size_t order_count() const { return index_.size(); }
 
- private:
+private:
   struct Level {
     Quantity total{0};
-    std::list<Order> orders;  // FIFO: front = oldest = highest priority
+    std::list<Order> orders; // FIFO: front = oldest = highest priority
   };
 
   // Greatest-first for bids, least-first for asks.
@@ -145,21 +155,23 @@ class OrderBookRef {
 
   template <class BookSide>
   Quantity match_against(BookSide& opp, OrderId taker_id, Side taker_side,
-                         Price limit, Quantity qty, Timestamp ts, bool is_market,
-                         bool taker_is_buy) {
+                         Price limit, Quantity qty, Timestamp ts,
+                         bool is_market, bool taker_is_buy) {
     while (qty > 0 && !opp.empty()) {
-      auto level_it = opp.begin();  // best opposite level
+      auto level_it = opp.begin(); // best opposite level
       Price level_px = level_it->first;
       if (!is_market) {
         bool crosses = taker_is_buy ? (level_px <= limit) : (level_px >= limit);
-        if (!crosses) break;
+        if (!crosses)
+          break;
       }
       Level& lvl = level_it->second;
       // Walk the FIFO queue at this level.
       while (qty > 0 && !lvl.orders.empty()) {
         Order& maker = lvl.orders.front();
         Quantity exec = qty < maker.quantity ? qty : maker.quantity;
-        sink_.on_trade(Trade{taker_id, maker.id, taker_side, level_px, exec, ts});
+        sink_.on_trade(
+            Trade{taker_id, maker.id, taker_side, level_px, exec, ts});
         qty -= exec;
         maker.quantity -= exec;
         lvl.total -= exec;
@@ -171,7 +183,8 @@ class OrderBookRef {
       // One book update per maker level once it is fully processed.
       sink_.on_book_update(
           BookUpdate{opposite(taker_side), level_px, lvl.total, ts});
-      if (lvl.total == 0) opp.erase(level_it);
+      if (lvl.total == 0)
+        opp.erase(level_it);
     }
     return qty;
   }
@@ -196,14 +209,16 @@ class OrderBookRef {
       lvl.total -= loc.it->quantity;
       lvl.orders.erase(loc.it);
       sink_.on_book_update(BookUpdate{Side::Buy, loc.price, lvl.total, ts});
-      if (lvl.total == 0) bids_.erase(lit);
+      if (lvl.total == 0)
+        bids_.erase(lit);
     } else {
       auto lit = asks_.find(loc.price);
       Level& lvl = lit->second;
       lvl.total -= loc.it->quantity;
       lvl.orders.erase(loc.it);
       sink_.on_book_update(BookUpdate{Side::Sell, loc.price, lvl.total, ts});
-      if (lvl.total == 0) asks_.erase(lit);
+      if (lvl.total == 0)
+        asks_.erase(lit);
     }
   }
 
@@ -213,4 +228,4 @@ class OrderBookRef {
   std::unordered_map<OrderId, Locator> index_;
 };
 
-}  // namespace lob
+} // namespace lob

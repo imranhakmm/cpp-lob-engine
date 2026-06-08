@@ -10,30 +10,30 @@ namespace {
 
 char type_char(MsgType t) {
   switch (t) {
-    case MsgType::Limit:
-      return 'L';
-    case MsgType::Market:
-      return 'M';
-    case MsgType::Cancel:
-      return 'C';
-    case MsgType::Modify:
-      return 'X';
+  case MsgType::Limit:
+    return 'L';
+  case MsgType::Market:
+    return 'M';
+  case MsgType::Cancel:
+    return 'C';
+  case MsgType::Modify:
+    return 'X';
   }
   return '?';
 }
 
 MsgType parse_type(char c) {
   switch (c) {
-    case 'L':
-      return MsgType::Limit;
-    case 'M':
-      return MsgType::Market;
-    case 'C':
-      return MsgType::Cancel;
-    case 'X':
-      return MsgType::Modify;
-    default:
-      throw std::runtime_error(std::string("bad message type: ") + c);
+  case 'L':
+    return MsgType::Limit;
+  case 'M':
+    return MsgType::Market;
+  case 'C':
+    return MsgType::Cancel;
+  case 'X':
+    return MsgType::Modify;
+  default:
+    throw std::runtime_error(std::string("bad message type: ") + c);
   }
 }
 
@@ -48,7 +48,7 @@ std::int64_t to_i64(const std::string& s) {
   return v;
 }
 
-}  // namespace
+} // namespace
 
 std::string to_csv_line(const Message& m) {
   std::string out;
@@ -102,27 +102,33 @@ Message parse_csv_line(const std::string& line) {
 
 void write_csv(const std::string& path, const std::vector<Message>& messages) {
   std::ofstream os(path);
-  if (!os) throw std::runtime_error("cannot open for write: " + path);
+  if (!os)
+    throw std::runtime_error("cannot open for write: " + path);
   os << "ts,type,id,side,price,qty,new_price,new_qty\n";
-  for (const Message& m : messages) os << to_csv_line(m) << '\n';
+  for (const Message& m : messages)
+    os << to_csv_line(m) << '\n';
 }
 
 std::vector<Message> load_csv(const std::string& path) {
   std::ifstream is(path);
-  if (!is) throw std::runtime_error("cannot open for read: " + path);
+  if (!is)
+    throw std::runtime_error("cannot open for read: " + path);
   std::vector<Message> out;
   std::string line;
   bool first = true;
   while (std::getline(is, line)) {
-    if (!line.empty() && line.back() == '\r') line.pop_back();
-    if (line.empty()) continue;
+    if (!line.empty() && line.back() == '\r')
+      line.pop_back();
+    if (line.empty())
+      continue;
     if (first) {
       first = false;
-      if (line.rfind("ts,", 0) == 0) continue;  // skip header
+      if (line.rfind("ts,", 0) == 0)
+        continue; // skip header
     }
     out.push_back(parse_csv_line(line));
   }
   return out;
 }
 
-}  // namespace lob
+} // namespace lob
