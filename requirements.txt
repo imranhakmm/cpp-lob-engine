@@ -1,0 +1,10 @@
+# Python tooling for lobpy bindings + the microstructure analytics layer.
+# Pinned to the versions verified on the development machine (see docs/DESIGN.md).
+pybind11==3.0.4
+numpy==2.0.2
+pandas==2.3.3
+matplotlib==3.9.4
+pyarrow==21.0.0
+jupyter==1.1.1
+nbconvert==7.17.1
+notebook==7.5.7
