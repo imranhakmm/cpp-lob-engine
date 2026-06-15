@@ -6,10 +6,6 @@ layer. The project pairs a deliberately-simple **reference** engine with a
 cache-friendly **optimised** engine and proves they are observationally
 identical on millions of messages — then benchmarks the gap.
 
-> Built as an interview-grade portfolio piece for a systematic trading / quant
-> developer role: integer-tick matching, allocation-free hot path, golden
-> cross-validation, real benchmark numbers, and an analytics notebook.
-
 ---
 
 ## Why this design
